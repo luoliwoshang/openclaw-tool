@@ -1,0 +1,34 @@
+name: Verify Weixin CLI Snapshot
+
+on:
+  push:
+    paths:
+      - ".github/workflows/verify-weixin-cli.yml"
+      - "scripts/verify-weixin-cli.sh"
+      - "tools/weixin-cli/**"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-weixin-cli.yml"
+      - "scripts/verify-weixin-cli.sh"
+      - "tools/weixin-cli/**"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Show target version
+        run: node -p "require('./tools/weixin-cli/package.json').version"
+
+      - name: Verify local snapshot matches npm package
+        run: bash ./scripts/verify-weixin-cli.sh
