@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/Tencent/openclaw-weixin.git",
+  "tag": "v1.0.3",
+  "note": "This snapshot tracks the upstream Git tag, which does not match the package.json version inside the tag."
+}

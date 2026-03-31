@@ -1,0 +1,36 @@
+name: Verify OpenClaw Weixin Plugin Snapshot
+
+on:
+  push:
+    paths:
+      - ".github/workflows/verify-openclaw-weixin.yml"
+      - "plugins/openclaw-weixin.snapshot.json"
+      - "plugins/openclaw-weixin/**"
+      - "scripts/verify-openclaw-weixin.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-openclaw-weixin.yml"
+      - "plugins/openclaw-weixin.snapshot.json"
+      - "plugins/openclaw-weixin/**"
+      - "scripts/verify-openclaw-weixin.sh"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Show target snapshot source
+        run: node -e "const meta = require('./plugins/openclaw-weixin.snapshot.json'); console.log(`${meta.repository} @ ${meta.tag}`);"
+
+      - name: Verify local snapshot matches upstream Git tag
+        run: bash ./scripts/verify-openclaw-weixin.sh

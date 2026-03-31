@@ -555,3 +555,260 @@ Gateway/loader 根据：
 - `version-check.mjs` 在插件本体里是如何被调用的
 - OpenClaw 安装后实际写入 `openclaw.json` 的样子是什么
 - `plugins.installs.spec` 与 `resolvedSpec` 在真实数据里的区别
+
+## 20. 微信插件本体运行链路
+
+这一节讲的是 `plugins/openclaw-weixin` 这份插件源码本体，不是安装器。
+
+### 20.1 插件怎么注册进 OpenClaw
+
+入口在：
+
+- `plugins/openclaw-weixin/index.ts`
+- `plugins/openclaw-weixin/openclaw.plugin.json`
+
+其中：
+
+- `openclaw.plugin.json` 声明这是一个 `id = "openclaw-weixin"` 的插件，并声明它提供 `channels: ["openclaw-weixin"]`
+- `index.ts` 默认导出插件对象
+- 插件在 `register(api)` 里调用：
+  - `api.registerChannel({ plugin: weixinPlugin })`
+  - `api.registerCli(...)`
+
+也就是说：
+
+- OpenClaw loader 先发现插件
+- 然后调用插件的 `register`
+- 插件把自己的 channel 能力和 CLI 子命令挂进宿主
+
+### 20.2 扫码登录在做什么
+
+登录主入口在：
+
+- `plugins/openclaw-weixin/src/channel.ts`
+- `plugins/openclaw-weixin/src/auth/login-qr.ts`
+
+执行：
+
+```bash
+openclaw channels login --channel openclaw-weixin
+```
+
+后，核心流程是：
+
+1. `channel.ts` 进入 `auth.login`
+2. 调 `startWeixinLoginWithQr(...)`
+3. 它向上游请求：
+
+```text
+GET ilink/bot/get_bot_qrcode?bot_type=3
+```
+
+4. 返回二维码内容和二维码 URL
+5. 终端把二维码打印出来
+6. 然后调用 `waitForWeixinLogin(...)` 持续轮询：
+
+```text
+GET ilink/bot/get_qrcode_status?qrcode=...
+```
+
+7. 如果状态从 `wait` 变成 `scaned` / `confirmed`
+8. 一旦 `confirmed`，上游会返回：
+   - `bot_token`
+   - `ilink_bot_id`
+   - `baseurl`
+   - `ilink_user_id`
+
+这里要区分两个东西：
+
+- `sessionKey`
+  - 只是这次扫码登录流程的临时会话 key
+  - 只存在进程内存的 `activeLogins` `Map`
+  - 不落盘
+- `bot_token`
+  - 这是登录成功后真正长期用于 API 调用的凭据
+  - 会被保存到本地
+
+### 20.3 登录成功后凭据保存到哪里
+
+持久化逻辑在：
+
+- `plugins/openclaw-weixin/src/auth/accounts.ts`
+
+登录成功后，`channel.ts` 会调用：
+
+```ts
+saveWeixinAccount(normalizedId, {
+  token: waitResult.botToken,
+  baseUrl: waitResult.baseUrl,
+  userId: waitResult.userId,
+});
+registerWeixinAccountId(normalizedId);
+```
+
+所以本地会出现两类文件：
+
+- 账号索引：
+  - `~/.openclaw/openclaw-weixin/accounts.json`
+- 单账号凭据：
+  - `~/.openclaw/openclaw-weixin/accounts/<accountId>.json`
+
+账号文件里主要保存：
+
+- `token`
+- `savedAt`
+- `baseUrl`
+- `userId`
+
+注意：
+
+- 这是明文 JSON 文件，不是系统 Keychain
+- 插件会尽力把文件权限设成 `0600`
+- 旧版本还兼容一个老路径：
+  - `~/.openclaw/credentials/openclaw-weixin/credentials.json`
+
+### 20.4 Gateway 启动后怎么收消息
+
+运行期主循环在：
+
+- `plugins/openclaw-weixin/src/channel.ts`
+- `plugins/openclaw-weixin/src/monitor/monitor.ts`
+
+`gateway.startAccount` 会：
+
+1. 读取当前账号的 `token`
+2. 调 `monitorWeixinProvider(...)`
+3. 进入长轮询
+
+长轮询调用的是：
+
+```text
+POST ilink/bot/getupdates
+```
+
+请求里会带：
+
+- `AuthorizationType: ilink_bot_token`
+- `Authorization: Bearer <token>`
+- `X-WECHAT-UIN: <随机值的 base64>`
+- `base_info.channel_version`
+
+并且会把 `get_updates_buf` 持久化到：
+
+- `~/.openclaw/openclaw-weixin/accounts/<accountId>.sync.json`
+
+这样 Gateway 重启后还能继续接着同步。
+
+### 20.5 上下文 token 怎么保存
+
+除了长期 `bot_token`，微信这套还有一个每个会话/消息相关的：
+
+- `context_token`
+
+它来自入站消息的 `getupdates` 响应。
+
+相关逻辑在：
+
+- `plugins/openclaw-weixin/src/messaging/process-message.ts`
+- `plugins/openclaw-weixin/src/messaging/inbound.ts`
+
+处理流程是：
+
+1. 入站消息里如果有 `context_token`
+2. `process-message.ts` 会调用 `setContextToken(accountId, from_user_id, contextToken)`
+3. 这个 token 一边放进内存 `Map`
+4. 一边落盘到：
+
+- `~/.openclaw/openclaw-weixin/accounts/<accountId>.context-tokens.json`
+
+这样重启后 `restoreContextTokens(accountId)` 还能恢复。
+
+这个 token 不是扫码登录凭据本身，但它会影响后续对同一用户回复时的上下文关联。
+
+### 20.6 发消息时是怎么把凭据带上的
+
+出站消息主链路在：
+
+- `plugins/openclaw-weixin/src/channel.ts`
+- `plugins/openclaw-weixin/src/messaging/send.ts`
+- `plugins/openclaw-weixin/src/api/api.ts`
+
+流程大致是：
+
+1. OpenClaw 要发消息时，走 `weixinPlugin.outbound.sendText` / `sendMedia`
+2. 先根据 `accountId` 解析出当前账号
+3. 从账号文件加载：
+   - `account.baseUrl`
+   - `account.token`
+4. 再从 context token store 里找：
+   - `getContextToken(accountId, to)`
+5. 构造 `sendmessage` 请求体
+6. 最终由 `api.ts` 统一发 HTTP 请求
+
+HTTP 头里最关键的是：
+
+- `AuthorizationType: ilink_bot_token`
+- `Authorization: Bearer <account.token>`
+
+请求体里最关键的是：
+
+- `msg.to_user_id`
+- `msg.client_id`
+- `msg.item_list`
+- `msg.context_token`
+- `base_info.channel_version`
+
+所以最短理解就是：
+
+- 长期身份靠 `Bearer <bot_token>`
+- 会话上下文靠 `context_token`
+
+### 20.7 图片/文件消息额外会带什么
+
+如果发的是媒体，不只是把 token 带上这么简单。
+
+媒体发送还会多一段：
+
+1. 先调用：
+
+```text
+POST ilink/bot/getuploadurl
+```
+
+拿到上传参数
+
+2. 再把文件上传到 CDN
+
+3. 然后在 `sendmessage` 的 `item_list` 里带：
+   - `encrypt_query_param`
+   - `aes_key`
+   - `encrypt_type`
+   - 文件大小等字段
+
+也就是说：
+
+- 文本消息主要是 `Bearer token + context_token`
+- 媒体消息则是在此基础上，再带 CDN 相关加密参数
+
+## 21. 当前仓库新增的插件快照与校验
+
+为了和本机当前安装状态对照，这个仓库现在还新增了：
+
+- `plugins/openclaw-weixin`
+  - 来自 `https://github.com/Tencent/openclaw-weixin.git` 的 `v1.0.3` tag 快照
+- `plugins/openclaw-weixin.snapshot.json`
+  - 显式记录上游仓库和 tag
+- `scripts/verify-openclaw-weixin.sh`
+  - 校验本地快照是否与 Git tag 一致
+- `.github/workflows/verify-openclaw-weixin.yml`
+  - GitHub Actions 自动跑这份校验
+
+注意一个细节：
+
+- 这个上游 tag 叫 `v1.0.3`
+- 但 tag 内部 `package.json` 并不等于 `version: 1.0.3`
+
+所以这里的校验是：
+
+- 明确对 Git tag 做比对
+- 不依赖 `package.json.version` 去反推 tag
