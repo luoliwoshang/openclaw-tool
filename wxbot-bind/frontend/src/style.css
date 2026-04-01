@@ -1,0 +1,263 @@
+:root {
+  color-scheme: light;
+  font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #092414;
+  background:
+    radial-gradient(circle at top left, rgba(255, 201, 91, 0.28), transparent 28rem),
+    radial-gradient(circle at bottom right, rgba(17, 135, 83, 0.18), transparent 24rem),
+    #f7f4eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+code,
+pre {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+a {
+  color: inherit;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.page-shell {
+  width: min(1180px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.hero-card,
+.panel {
+  border: 1px solid rgba(9, 36, 20, 0.1);
+  border-radius: 28px;
+  background: rgba(255, 253, 246, 0.88);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(26, 52, 36, 0.08);
+}
+
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.hero-copy {
+  max-width: 44rem;
+}
+
+.eyebrow,
+.panel-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(9, 36, 20, 0.08);
+  color: #235137;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  margin: 0.9rem 0 0.5rem;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 0.96;
+}
+
+.summary {
+  margin: 0;
+  max-width: 42rem;
+  color: #355343;
+  font-size: 1.02rem;
+}
+
+.primary-button,
+.secondary-button {
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.primary-button {
+  min-width: 13rem;
+  padding: 1rem 1.35rem;
+  color: #fffdf5;
+  background: linear-gradient(135deg, #0e4c2f, #1a8a52);
+  box-shadow: 0 14px 28px rgba(22, 102, 63, 0.25);
+}
+
+.secondary-button {
+  padding: 0.72rem 1rem;
+  color: #113824;
+  background: #e8f3ea;
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.grid-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+  gap: 1.2rem;
+  margin-top: 1.25rem;
+}
+
+.panel {
+  padding: 1.4rem;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.qr-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.qr-frame {
+  display: grid;
+  place-items: center;
+  min-height: 356px;
+  padding: 1rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 254, 249, 0.96), rgba(244, 250, 244, 0.92));
+  border: 1px dashed rgba(17, 56, 36, 0.16);
+}
+
+.qr-frame img {
+  width: min(100%, 320px);
+  height: auto;
+  border-radius: 18px;
+}
+
+.qr-placeholder,
+.empty-state,
+.event-placeholder {
+  color: #547162;
+}
+
+.status-line {
+  margin: 1rem 0 0;
+  color: #214533;
+}
+
+.scan-link {
+  margin-top: 0.6rem;
+  color: #0f6d41;
+  text-decoration-thickness: 2px;
+}
+
+.error-line {
+  margin-top: 0.8rem;
+  color: #a22f2d;
+}
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(9, 36, 20, 0.08);
+}
+
+.field-row span {
+  color: #476756;
+}
+
+.field-row code {
+  overflow-wrap: anywhere;
+}
+
+.token-row code {
+  color: #0a5f38;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.4rem;
+}
+
+.payload-box {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 20px;
+  background: #102015;
+  color: #dff8e8;
+  overflow: auto;
+}
+
+.event-panel {
+  margin-top: 1.2rem;
+}
+
+.event-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #274835;
+}
+
+.event-list li + li {
+  margin-top: 0.55rem;
+}
+
+@media (max-width: 920px) {
+  .hero-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grid-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+}
