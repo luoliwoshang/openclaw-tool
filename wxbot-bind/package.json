@@ -2,19 +2,11 @@
   "name": "wxbot-bind",
   "private": true,
   "workspaces": [
-    "frontend",
-    "backend"
+    "frontend"
   ],
   "scripts": {
-    "dev": "concurrently -n frontend,backend -c yellow,cyan \"npm --workspace frontend run dev\" \"npm --workspace backend run dev\"",
-    "dev:frontend": "npm --workspace frontend run dev",
-    "dev:backend": "npm --workspace backend run dev",
-    "build": "npm run build --workspace frontend && npm run build --workspace backend",
-    "preview": "npm --workspace frontend run preview",
-    "start": "npm --workspace backend run start"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.1"
+    "dev": "npm --workspace frontend run dev",
+    "build": "npm run build --workspace frontend",
+    "preview": "npm --workspace frontend run preview"
   }
 }
-

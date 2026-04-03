@@ -6,11 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://localhost:8787",
+      "/wxbot-api": {
+        target: process.env.WXBOT_BIND_PROXY_TARGET || "https://ilinkai.weixin.qq.com",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/wxbot-api/, ""),
       },
     },
   },
 });
-
